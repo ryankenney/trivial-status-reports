@@ -131,7 +131,7 @@ def _generate_test_run_markdown(base_directory, config):
 				run = json.load(file)
 			test_id = run['test_id']
 			run_id = run["run_id"]
-			run_time = datetime.fromtimestamp(run['run_id'], timezone(config['timezone'])).strftime('%Y-%m-%d %H-%M-%S %Z')
+			run_time = _get_time_str(run['run_id'], config['timezone'])
 			run_state = run["state"]
 			markdown_lines = []
 			markdown_lines.append(f'Test [{test_id}] Run [{run_id}]')
@@ -180,23 +180,13 @@ def _generate_test_summary_markdown(base_directory, config):
 		markdown_lines.append('')
 
 		test_dir = tests_dir / test_def['test_id']
-
-		# TODO: De-duplicate section
-		run_files_iter = test_dir.glob('*.json')
-		run_files = []
-		for run_file in run_files_iter:
-			run_files.append(run_file)
-		# NOTE: This assumes that the run_ids (floating point UTC as-strings, are sortable).
-		# Alternative is to load all into memory and sort by floating point values within the json.
-		run_files.sort(reverse=True, key=lambda file: str(file))
-
+		run_files = _get_run_files_for_test(test_dir)
 		for run_file in run_files:
 			with open(run_file, 'r') as file:
 				run = json.load(file)
 			test_id = run['test_id']
 			run_id = run['run_id']
-			# TODO: De-duplicate call
-			run_time = datetime.fromtimestamp(run['run_id'], timezone(config['timezone'])).strftime('%Y-%m-%d %H-%M-%S %Z')
+			run_time = _get_time_str(run['run_id'], config['timezone'])
 			run_state = run['state']
 			markdown_lines.append(f'* [{run_time}]({test_id}/{run_id}.md) [**{run_state}**]')
 
@@ -208,8 +198,6 @@ def _generate_test_summary_markdown(base_directory, config):
 def _generate_main_summary_markdown(base_directory, config):
 	tests_dir = Path(base_directory) / 'tests'
 	tests_dir.mkdir(parents=True, exist_ok=True)
-
-	# TODO: Support title/description config files
 
 	markdown_lines = []
 	markdown_lines.append(config['summary_title'])
@@ -228,28 +216,16 @@ def _generate_main_summary_markdown(base_directory, config):
 
 	for test_def in test_defs:
 		test_dir = tests_dir / test_def['test_id']
-
-		# TODO: De-duplicate section
-		run_files_iter = test_dir.glob('*.json')
-		run_files = []
-		for run_file in run_files_iter:
-			run_files.append(run_file)
-		# NOTE: This assumes that the run_ids (floating point UTC as-strings, are sortable).
-		# Alternative is to load all into memory and sort by floating point values within the json.
-		run_files.sort(reverse=True, key=lambda file: str(file))
-
+		run_files = _get_run_files_for_test(test_dir)
 		if len(run_files) < 1:
 			continue
-
 		with open(run_files[0], 'r') as file:
 			run = json.load(file)
-
 		test_id =  test_def['test_id']
 		test_title = test_def['title']
 		run_id = run['run_id']
 		run_state = run['state']
-		# TODO: De-duplicate call
-		run_time = datetime.fromtimestamp(run['run_id'], timezone(config['timezone'])).strftime('%Y-%m-%d %H-%M-%S %Z')
+		run_time = _get_time_str(run['run_id'], config['timezone'])
 
 		markdown_lines.append(f'* [{run_state}](md/tests/{test_id}/{run_id}.md) [{test_title}](md/tests/{test_id}.md) ({run_time})')
 
@@ -258,6 +234,16 @@ def _generate_main_summary_markdown(base_directory, config):
 	with open(base_directory / 'summary.md', 'w') as file:
 		file.write('\n'.join(markdown_lines))
 
+def _get_run_files_for_test(test_dir):
+	run_files_iter = test_dir.glob('*.json')
+	run_files = []
+	for run_file in run_files_iter:
+		run_files.append(run_file)
+	# NOTE: This assumes that the run_ids (floating point UTC as-strings, are sortable).
+	# Alternative is to load all into memory and sort by floating point values within the json.
+	run_files.sort(reverse=True, key=lambda file: str(file))
+	return run_files
+
 _unsafe_filesystem_chars = re.compile(r'[^0-9a-zA-Z_\-]+')
 
 def _sanitize_filesystem_path(path_str):
@@ -265,3 +251,5 @@ def _sanitize_filesystem_path(path_str):
 	path_str = _unsafe_filesystem_chars.sub('_', path_str)
 	return path_str
 
+def _get_time_str(timestamp_float, tz_str):
+	return datetime.fromtimestamp(timestamp_float, timezone(tz_str)).strftime('%Y-%m-%d %H-%M-%S %Z')
