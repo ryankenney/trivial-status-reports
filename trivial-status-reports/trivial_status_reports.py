@@ -30,7 +30,7 @@ def define_config(base_directory,
 		config['overview_section_md'] = config_overview_section_md
 	_write_config(base_directory, config)
 
-def define_test_definition(base_directory, test_id, title, description, timeout_secs):
+def define_test_definition(base_directory, test_id, title, description, timeout_secs=0):
 	"""
 	Updates/creates a test definition to the target directory. This only updates the json metadata for the test definition (not markdown).
 
@@ -80,6 +80,7 @@ def report_test_run(base_directory, test_id, state, log):
 def generate_markdown(base_directory):
 	"""
 	Updates all markdown documents from the json metadata files.
+	Re-runs will generate identical files for unmodified json files.
 
 	:param base_directory: The base directory where the config and and all output should go.
 	"""
